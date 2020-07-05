@@ -5,22 +5,25 @@ import String
 import Integer
 import Wurstunit
 import Playercolor
+import Annotations
+import Maths
+import Real
 
 public constant COLOR_WHITE = colorA(255,255,255,255)
 public constant COLOR_BLACK = colorA(0,0,0,0)
 public constant COLOR_GOLD  = colorA(255, 204, 0, 255)
 
-constant DEFAULT_COLOR_NAME = "black"
+public constant DEFAULT_COLOR_NAME = "black"
 
-constant MAX_PLAYER_COLORS = 23
+public constant MAX_PLAYER_COLORS = 23
 /** Player color array. Access through playercolor.toColor() */
-constant PLAYER_COLORS = [
+public constant PLAYER_COLORS = [
 	color(255,2,2), color(0,65,255), color(27,229,184), color(83,0,128),
 	color(255,252,0), color(254,137,13), color(31,191,0), color(228,90,175),
 	color(148,149,150), color(125,190,241),	color(15,97,69), color(77,41,3),
 	color(155,0,0), color(0, 0, 195), color(0, 234, 255), color(190, 0, 254),
 	color(235, 205, 135), color(248, 164, 139), color(191, 255, 128), color(220, 185, 235),
-	color(40, 40, 40), color(235, 240, 255), color(0, 120, 30), color(164, 11, 51)
+	color(40, 40, 40), color(235, 240, 255), color(0, 120, 30), color(164, 111, 51)
 ]
 
 @deprecated("use playercolor.toColor()") // Please delete this monster at a later date
@@ -34,7 +37,7 @@ public constant playercolors = [
 ]
 
 /** Player color names array. Access through playercolor.getName() */
-constant PLAYER_COLOR_NAMES = [
+public constant PLAYER_COLOR_NAMES = [
 	"red", "blue", "teal", "purple",
 	"yellow", "orange", "green", "pink",
 	"gray", "light blue", "dark green", "brown",
@@ -59,6 +62,9 @@ public tuple color(int red, int green, int blue)
 /** Tuple for your RGBA color needs. 0 = black/transparent, 255 = full color/opaque */
 public tuple colorA(int red, int green, int blue, int alpha)
 
+/** Tuple for your HSV(Hue Saturation Value) color needs. All values 0-1 */
+public tuple colorHSV(real h, real s, real v)
+
 /** Add an alpha value to a simple color tuple */
 public function color.withAlpha(int a) returns colorA
 	return colorA(this.red, this.green, this.blue, a)
@@ -66,12 +72,70 @@ public function color.withAlpha(int a) returns colorA
 public function colorA.withoutAlpha() returns color
 	return color(this.red, this.green, this.blue)
 
+/** Returns the HSV equivalent */
+public function color.toHSV() returns colorHSV
+	real s = 0
+	real h = 0
+	let r = this.red / 255.0
+	let g = this.green / 255.0
+	let b = this.blue / 255.0
+	let max = max(r, g, b)
+	let min = min(r, g, b)
+	let delta = max - min
+	if max != 0 and delta != 0
+		s = delta / max
+		if r == max
+			if g < b
+				h = 1 + (g - b) / delta / 6
+			else
+				h = (g - b) / delta / 6
+		else if g == max
+			h = 1.0 / 3 + (b - r) / delta / 6
+		else
+			h = 2.0 / 3 + (r - g) / delta / 6
+	return colorHSV(h, s, max)
+
+/** Returns the RGB equivalent */
+public function colorHSV.toRGB() returns color
+	real r
+	real g
+	real b
+	let diff = this.s * this.v
+	let max = this.v * 255
+	let mix = diff * 6 * 255
+	let min = (this.v - diff) * 255
+	if this.h < 1.0 / 6
+		r = max
+		g = this.h * mix + min
+		b = min
+	else if this.h < 2.0 / 6
+		r = (2.0 / 6 - this.h) * mix + min
+		g = max
+		b = min
+	else if this.h < 3.0 / 6
+		r = min
+		g = max
+		b = (this.h - 2.0 / 6) * mix + min
+	else if this.h < 4.0 / 6
+		r = min
+		g = (4.0 / 6 - this.h) * mix + min
+		b = max
+	else if this.h < 5.0 / 6
+		r = (this.h - 4.0 / 6) * mix + min
+		g = min
+		b = max
+	else
+		r = max
+		g = min
+		b = (1 - this.h) * mix + min
+	return color(r.toInt(), g.toInt(), b.toInt())
+
 /** Get a colorA tuple from a hexstring */
 public function fromHexString(string number) returns colorA
-	var alpha = number.substring(0,2)
-	var red = number.substring(2,4)
-	var green = number.substring(4,6)
-	var blue = number.substring(6,8)
+	let alpha = number.substring(0,2)
+	let red = number.substring(2,4)
+	let green = number.substring(4,6)
+	let blue = number.substring(6,8)
 	return colorA(toDec(red), toDec(green), toDec(blue), toDec(alpha))
 
 public function color.normalize() returns color
@@ -149,14 +213,18 @@ public function color.toString() returns string
 public function colorA.toString() returns string
 	return "colorA(" + (this.red).toString() + ", " + (this.green).toString() + ", " + (this.blue).toString() + ", " + (this.alpha).toString() + ")"
 
+/** Returns the tuple in string format colorHSV(h,s,v) */
+public function colorHSV.toString() returns string
+	return "colorHSV(" + (this.h).toString() + ", " + (this.s).toString() + ", " + (this.v).toString() + ")"
+
 /** Hexadecimal numbers */
 public constant hexs = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"]
 constant decs = new Table()
 
 /** Converts and int to a hexnumber */
 public function toHex(int number) returns string
-	var firstpart = number div 16
-	var secondpart = number - firstpart * 16
+	let firstpart = number div 16
+	let secondpart = number - firstpart * 16
 	return hexs[firstpart] + hexs[secondpart]
 
 /** Converts a twochar string to an int */
@@ -164,8 +232,8 @@ public function toDec(string twochar) returns int
 	if twochar.length() > 2
 		return -1
 
-	var first = twochar.substring(0,1).toUpperCase()
-	var second = twochar.substring(1,2).toUpperCase()
+	let first = twochar.substring(0,1).toUpperCase()
+	let second = twochar.substring(1,2).toUpperCase()
 
 	return decs.loadInt(StringHash(first)) * 16 + decs.loadInt(StringHash(second))
 
@@ -201,6 +269,13 @@ public function string.toPlayerColor() returns playercolor
 			break
 	return pc
 
+function colorHSV.assert()
+	let delta = 0.01
+	let translated = this.toRGB().toHSV()
+	let compare = colorHSV((translated.h - this.h).abs(), (translated.s - this.s).abs(), (translated.v - this.v).abs())
+	if compare.h > delta or compare.s > delta or compare.v > delta
+		testFail("Actual {0}, Expected {1}".format(translated.toString(), this.toString()))
+
 @compiletime function initializeTable()
 	for i = 0 to 15
 		decs.saveInt(hexs[i].getHash(), i)
@@ -219,18 +294,27 @@ init
 
 	assertTrue(PLAYER_COLOR_RED != null)
 
+@Test public function testHSV()
+	colorHSV(0, 0, 1).assert()
+	colorHSV(0, 0, 0.5).assert()
+	colorHSV(0, 0, 0).assert()
+	for h = 0 to 11
+		for s = 2 downto 1
+			for v = 2 downto 1
+				colorHSV(h / 12.0, s / 2.0, v / 2.0).assert()
+
 @Test public function testColorNames()
 	color(255, 2, 2).getName().assertEquals("red")
-	color(164, 11, 51).getName().assertEquals("peanut")
+	color(164, 111, 51).getName().assertEquals("peanut")
 	assertTrue("red".toColor() == color(255, 2, 2))
-	assertTrue("peanut".toColor() == color(164, 11, 51))
+	assertTrue("peanut".toColor() == color(164, 111, 51))
 	assertTrue("red".toPlayerColor() == PLAYER_COLOR_RED)
 	assertTrue("peanut".toPlayerColor() == PLAYER_COLOR_PEANUT)
 
 @Test public function testPlayerColorConversion()
 	assertTrue(PLAYER_COLOR_BLUE.toColor() == color(0,65,255))
 	assertTrue(PLAYER_COLOR_RED.toColor() == color(255, 2, 2))
-	assertTrue(PLAYER_COLOR_PEANUT.toColor() ==  color(164, 11, 51))
+	assertTrue(PLAYER_COLOR_PEANUT.toColor() ==  color(164, 111, 51))
 	PLAYER_COLOR_RED.getName().assertEquals("red")
 	PLAYER_COLOR_COAL.getName().assertEquals("coal")
 
